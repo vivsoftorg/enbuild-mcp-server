@@ -1,12 +1,13 @@
 {
   "servers": {
-    "enbuild": {
-      "command": "/Users/junedm/work/git/vivsoft/mcp-server-enbuild/bin/mcp-server-enbuild",
-      "args": [],
-      "env": {
-        "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io/enbuild-bk/",
-        "ENBUILD_API_TOKEN": "junedm"
+      "enbuild": {
+        "type": "stdio",
+        "command": "/Users/junedm/work/git/vivsoft/mcp-server-enbuild/bin/mcp-server-enbuild",
+        "args": [],
+        "env": {
+          "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io/enbuild-bk/",
+          "ENBUILD_API_TOKEN": "junedm"
+        }
       }
-    }
   }
 }
