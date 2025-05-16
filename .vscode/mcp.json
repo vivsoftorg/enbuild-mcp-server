@@ -9,16 +9,5 @@
           "ENBUILD_API_TOKEN": "junedm"
         }
       }
-  },
-    "mcpServers": {
-      "enbuild": {
-        "type": "stdio",
-        "command": "/usr/local/bin/mcp-server-enbuild",
-        "args": [],
-        "env": {
-          "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io/enbuild-bk/",
-          "ENBUILD_API_TOKEN": "junedm"
-        }
-      }
   }
 }

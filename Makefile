@@ -6,7 +6,7 @@ build:
 
 run: build
 	@echo "Running MCP server using mcphost..."
-	/usr/local/bin/mcphost -m ollama:llama3.2:latest --config .vscode/mcp.json
+	/usr/local/bin/mcphost -m ollama:llama3.2:latest --config .vscode/mcphost-mcp.json
 
 clean:
 	@echo "Cleaning up..."
