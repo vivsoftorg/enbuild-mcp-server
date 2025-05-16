@@ -136,27 +136,30 @@ func main() {
 	)
 	addr := flag.String("sse-address", ":8080", "The host and port to start the SSE server on")
 	logLevel := flag.String("log-level", "info", "Log level (debug, info, warn, error)")
-	
+
 	var ec enbuildConfig
 	ec.addFlags()
-	
+
 	flag.Parse()
 
-	// Set environment variables from flags if provided
-	if ec.token != "" {
-		os.Setenv("ENBUILD_API_TOKEN", ec.token)
-	}
-	if ec.baseURL != "" {
-		os.Setenv("ENBUILD_BASE_URL", ec.baseURL)
-	}
-
-	// Check for environment variables if flags not provided
+	// Check for token and base URL from flags or environment variables
 	if ec.token == "" {
 		ec.token = os.Getenv("ENBUILD_API_TOKEN")
+		if ec.token == "" {
+			log.Fatalf("Error: ENBUILD API token is required. Provide it via --token flag or ENBUILD_API_TOKEN environment variable")
+		}
 	}
+
 	if ec.baseURL == "" {
 		ec.baseURL = os.Getenv("ENBUILD_BASE_URL")
+		if ec.baseURL == "" {
+			log.Fatalf("Error: ENBUILD base URL is required. Provide it via --base-url flag or ENBUILD_BASE_URL environment variable")
+		}
 	}
+
+	// Set environment variables from flags for consistent access
+	os.Setenv("ENBUILD_API_TOKEN", ec.token)
+	os.Setenv("ENBUILD_BASE_URL", ec.baseURL)
 
 	if err := run(transport, *addr, parseLevel(*logLevel), ec); err != nil {
 		log.Fatalf("Error: %v", err)
@@ -174,19 +177,23 @@ func parseLevel(level string) slog.Level {
 // initializeClient creates a new ENBUILD client with the provided token
 func initializeClient(token string) (*localenbuild.Client, error) {
 	options := []localenbuild.ClientOption{}
-	
+
 	// Use token from parameter or environment variable
 	if token != "" {
 		options = append(options, localenbuild.WithAuthToken(token))
 	} else if envToken := os.Getenv("ENBUILD_API_TOKEN"); envToken != "" {
 		options = append(options, localenbuild.WithAuthToken(envToken))
+	} else {
+		return nil, fmt.Errorf("API token is required but not provided")
 	}
-	
-	// Use base URL from environment variable if available
-	if baseURL := os.Getenv("ENBUILD_BASE_URL"); baseURL != "" {
-		// Add base URL option if your client supports it
-		// options = append(options, localenbuild.WithBaseURL(baseURL))
+
+	// Use base URL from environment variable
+	baseURL := os.Getenv("ENBUILD_BASE_URL")
+	if baseURL == "" {
+		return nil, fmt.Errorf("base URL is required but not provided")
 	}
+
+	options = append(options, localenbuild.WithBaseURL(baseURL))
 
 	return localenbuild.NewClient(options...)
 }
@@ -262,12 +269,12 @@ func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	options := &localenbuild.CatalogListOptions{
 		Name: name,
 	}
-	
+
 	// Add type filter if provided
 	if catalogType != "" {
 		options.Type = catalogType
 	}
-	
+
 	// Add VCS filter if provided
 	if vcs != "" {
 		options.VCS = vcs
@@ -287,7 +294,7 @@ func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	if vcs != "" {
 		filterDesc += fmt.Sprintf(", vcs: '%s'", vcs)
 	}
-	
+
 	response := CatalogResponse{
 		Success: true,
 		Count:   len(catalogs),
@@ -304,7 +311,7 @@ func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error formatting JSON response: %v", err)
 	}
-	
+
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
@@ -313,11 +320,11 @@ func formatErrorResponse(message string, err error) (*mcp.CallToolResult, error)
 		Success: false,
 		Message: fmt.Sprintf("%s: %v", message, err),
 	}
-	
+
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("error formatting error response: %v", err)
 	}
-	
+
 	return mcp.NewToolResultText(string(jsonData)), nil
 }

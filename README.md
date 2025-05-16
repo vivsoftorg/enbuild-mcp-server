@@ -27,6 +27,8 @@ go build
 
 ## Usage
 
+> **Note:** The ENBUILD API token and base URL are required. You must provide them either via command-line flags or environment variables.
+
 ### Starting the server
 
 The server supports two transport modes:

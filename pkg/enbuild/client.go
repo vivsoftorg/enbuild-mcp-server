@@ -84,7 +84,7 @@ func NewClient(options ...ClientOption) (*Client, error) {
 func (c *Client) ListCatalogs(options *CatalogListOptions) ([]*enbuild.Catalog, error) {
 	// Convert our options to SDK options
 	sdkOptions := &enbuild.CatalogListOptions{}
-	
+
 	if options != nil {
 		sdkOptions.Name = options.Name
 		sdkOptions.Type = options.Type
@@ -97,7 +97,7 @@ func (c *Client) ListCatalogs(options *CatalogListOptions) ([]*enbuild.Catalog, 
 // GetCatalog returns details of a specific ENBUILD catalog
 func (c *Client) GetCatalog(id string, options *CatalogListOptions) (*enbuild.Catalog, error) {
 	sdkOptions := &enbuild.CatalogListOptions{}
-	
+
 	if options != nil {
 		sdkOptions.Name = options.Name
 		sdkOptions.Type = options.Type
