@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -12,8 +11,6 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/olekukonko/tablewriter"
-	"github.com/vivsoftorg/enbuild-sdk-go/pkg/enbuild"
 	localenbuild "github.com/vivsoftorg/mcp-server-enbuild/pkg/enbuild"
 )
 
@@ -42,7 +39,6 @@ type CatalogResponse struct {
 	Message string      `json:"message,omitempty"`
 	Count   int         `json:"count,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
-	Table   string      `json:"table,omitempty"` // Added for table representation
 }
 
 func newServer() *server.MCPServer {
@@ -320,16 +316,8 @@ func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	return formatJSONResponse(response)
 }
 
-// formatJSONResponse formats the response as JSON and includes a table representation
+// formatJSONResponse formats the response as JSON
 func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
-	// Generate table representation if there's data
-	if response.Success && response.Count > 0 {
-		tableStr, err := generateTableOutput(response.Data)
-		if err == nil {
-			response.Table = tableStr
-		}
-	}
-
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("error formatting JSON response: %v", err)
