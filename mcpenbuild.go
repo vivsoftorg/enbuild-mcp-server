@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -34,6 +34,14 @@ func (ec *enbuildConfig) addFlags() {
 	flag.StringVar(&ec.baseURL, "base-url", "", "Base URL for the ENBUILD API")
 }
 
+// CatalogResponse is a standardized response format for catalog data
+type CatalogResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Count   int    `json:"count,omitempty"`
+	Data    any    `json:"data,omitempty"`
+}
+
 func newServer() *server.MCPServer {
 	s := server.NewMCPServer(
 		serverName,
@@ -47,17 +55,21 @@ func newServer() *server.MCPServer {
 }
 
 func registerTools(s *server.MCPServer) {
-	// Register the list-catalogs tool
-	s.AddTool(mcp.NewTool("list-catalogs",
-		mcp.WithDescription("List all ENBUILD catalogs"),
+	// Register the list_catalogs tool
+	s.AddTool(mcp.NewTool("list_catalogs",
+		mcp.WithDescription("Lists all catalogs for a given VCS type (GITHUB or GITLAB)"),
+		mcp.WithString("vcs",
+			mcp.Description("VCS to filter by (GITHUB or GITLAB)"),
+			mcp.Required(),
+		),
 		mcp.WithString("token",
 			mcp.Description("API token to use"),
 		),
 	), listCatalogs)
 
-	// Register the get-catalog tool
-	s.AddTool(mcp.NewTool("get-catalog",
-		mcp.WithDescription("Get details of a specific ENBUILD catalog"),
+	// Register the get_catalog_details tool
+	s.AddTool(mcp.NewTool("get_catalog_details",
+		mcp.WithDescription("Fetches details of all catalogs that match a specific catalog ID"),
 		mcp.WithString("id",
 			mcp.Description("ID of the catalog"),
 			mcp.Required(),
@@ -65,43 +77,27 @@ func registerTools(s *server.MCPServer) {
 		mcp.WithString("token",
 			mcp.Description("API token to use"),
 		),
-	), getCatalog)
+	), getCatalogDetails)
 
-	// Register the search-catalogs tool
-	s.AddTool(mcp.NewTool("search-catalogs",
-		mcp.WithDescription("Search for ENBUILD catalogs by name"),
+	// Register the search_catalogs tool
+	s.AddTool(mcp.NewTool("search_catalogs",
+		mcp.WithDescription("Search for catalogs using name, filtered by catalog type and VCS"),
 		mcp.WithString("name",
 			mcp.Description("Name to search for"),
+			mcp.Required(),
+		),
+		mcp.WithString("type",
+			mcp.Description("Type to filter by (e.g., terraform, ansible)"),
+			mcp.Required(),
+		),
+		mcp.WithString("vcs",
+			mcp.Description("VCS to filter by (GITHUB or GITLAB)"),
 			mcp.Required(),
 		),
 		mcp.WithString("token",
 			mcp.Description("API token to use"),
 		),
 	), searchCatalogs)
-
-	// Register the filter-catalogs-by-type tool
-	s.AddTool(mcp.NewTool("filter-catalogs-by-type",
-		mcp.WithDescription("Filter ENBUILD catalogs by type"),
-		mcp.WithString("type",
-			mcp.Description("Type to filter by (e.g., terraform, ansible)"),
-			mcp.Required(),
-		),
-		mcp.WithString("token",
-			mcp.Description("API token to use"),
-		),
-	), filterCatalogsByType)
-
-	// Register the filter-catalogs-by-vcs tool
-	s.AddTool(mcp.NewTool("filter-catalogs-by-vcs",
-		mcp.WithDescription("Filter ENBUILD catalogs by VCS"),
-		mcp.WithString("vcs",
-			mcp.Description("VCS to filter by (e.g., github, gitlab)"),
-			mcp.Required(),
-		),
-		mcp.WithString("token",
-			mcp.Description("API token to use"),
-		),
-	), filterCatalogsByVCS)
 }
 
 // Run starts the MCP server with the specified transport
@@ -154,6 +150,14 @@ func main() {
 		os.Setenv("ENBUILD_BASE_URL", ec.baseURL)
 	}
 
+	// Check for environment variables if flags not provided
+	if ec.token == "" {
+		ec.token = os.Getenv("ENBUILD_API_TOKEN")
+	}
+	if ec.baseURL == "" {
+		ec.baseURL = os.Getenv("ENBUILD_BASE_URL")
+	}
+
 	if err := run(transport, *addr, parseLevel(*logLevel), ec); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
@@ -167,177 +171,153 @@ func parseLevel(level string) slog.Level {
 	return l
 }
 
+// initializeClient creates a new ENBUILD client with the provided token
+func initializeClient(token string) (*localenbuild.Client, error) {
+	options := []localenbuild.ClientOption{}
+	
+	// Use token from parameter or environment variable
+	if token != "" {
+		options = append(options, localenbuild.WithAuthToken(token))
+	} else if envToken := os.Getenv("ENBUILD_API_TOKEN"); envToken != "" {
+		options = append(options, localenbuild.WithAuthToken(envToken))
+	}
+	
+	// Use base URL from environment variable if available
+	if baseURL := os.Getenv("ENBUILD_BASE_URL"); baseURL != "" {
+		// Add base URL option if your client supports it
+		// options = append(options, localenbuild.WithBaseURL(baseURL))
+	}
+
+	return localenbuild.NewClient(options...)
+}
+
 // Tool implementations
 func listCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	token, _ := request.Params.Arguments["token"].(string)
-
-	// Initialize ENBUILD SDK client
-	options := []localenbuild.ClientOption{}
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	}
-
-	client, err := localenbuild.NewClient(options...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ENBUILD client: %v", err)
-	}
-
-	// Get catalogs
-	catalogs, err := client.ListCatalogs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list catalogs: %v", err)
-	}
-
-	// Format the response
-	var result strings.Builder
-	result.WriteString("Catalogs:\n")
-	for _, catalog := range catalogs {
-		result.WriteString(fmt.Sprintf("- ID: %v, Name: %s, Type: %s, VCS: %s, Slug: %s\n",
-			catalog.ID, catalog.Name, catalog.Type, catalog.VCS, catalog.Slug))
-	}
-
-	return mcp.NewToolResultText(result.String()), nil
-}
-
-func getCatalog(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	id, _ := request.Params.Arguments["id"].(string)
-	token, _ := request.Params.Arguments["token"].(string)
-
-	// Initialize ENBUILD SDK client
-	options := []localenbuild.ClientOption{}
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	}
-
-	client, err := localenbuild.NewClient(options...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ENBUILD client: %v", err)
-	}
-
-	// Get catalog details
-	catalog, err := client.GetCatalog(id, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get catalog details: %v", err)
-	}
-
-	// Format the response
-	var result strings.Builder
-	result.WriteString("Catalog Details:\n")
-	result.WriteString(fmt.Sprintf("- ID: %v\n", catalog.ID))
-	result.WriteString(fmt.Sprintf("- Name: %s\n", catalog.Name))
-	result.WriteString(fmt.Sprintf("- Description: %s\n", catalog.Description))
-	result.WriteString(fmt.Sprintf("- Type: %s\n", catalog.Type))
-	result.WriteString(fmt.Sprintf("- VCS: %s\n", catalog.VCS))
-	result.WriteString(fmt.Sprintf("- Slug: %s\n", catalog.Slug))
-	result.WriteString(fmt.Sprintf("- Version: %s\n", catalog.Version))
-
-	return mcp.NewToolResultText(result.String()), nil
-}
-
-func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, _ := request.Params.Arguments["name"].(string)
-	token, _ := request.Params.Arguments["token"].(string)
-
-	// Initialize ENBUILD SDK client
-	options := []localenbuild.ClientOption{}
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	}
-
-	client, err := localenbuild.NewClient(options...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ENBUILD client: %v", err)
-	}
-
-	// Search catalogs
-	catalogs, err := client.SearchCatalogs(name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search catalogs: %v", err)
-	}
-
-	// Format the response
-	var result strings.Builder
-	result.WriteString(fmt.Sprintf("Search Results for '%s':\n", name))
-	if len(catalogs) == 0 {
-		result.WriteString("No catalogs found matching the search criteria.\n")
-	} else {
-		for _, catalog := range catalogs {
-			result.WriteString(fmt.Sprintf("- ID: %v, Name: %s, Type: %s, VCS: %s, Slug: %s\n",
-				catalog.ID, catalog.Name, catalog.Type, catalog.VCS, catalog.Slug))
-		}
-	}
-
-	return mcp.NewToolResultText(result.String()), nil
-}
-
-func filterCatalogsByType(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	catalogType, _ := request.Params.Arguments["type"].(string)
-	token, _ := request.Params.Arguments["token"].(string)
-
-	// Initialize ENBUILD SDK client
-	options := []localenbuild.ClientOption{}
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	}
-
-	client, err := localenbuild.NewClient(options...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ENBUILD client: %v", err)
-	}
-
-	// Filter catalogs by type
-	catalogs, err := client.FilterCatalogsByType(catalogType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to filter catalogs: %v", err)
-	}
-
-	// Format the response
-	var result strings.Builder
-	result.WriteString(fmt.Sprintf("Catalogs of type '%s':\n", catalogType))
-	if len(catalogs) == 0 {
-		result.WriteString("No catalogs found matching the filter criteria.\n")
-	} else {
-		for _, catalog := range catalogs {
-			result.WriteString(fmt.Sprintf("- ID: %v, Name: %s, Type: %s, VCS: %s, Slug: %s\n",
-				catalog.ID, catalog.Name, catalog.Type, catalog.VCS, catalog.Slug))
-		}
-	}
-
-	return mcp.NewToolResultText(result.String()), nil
-}
-
-func filterCatalogsByVCS(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	vcs, _ := request.Params.Arguments["vcs"].(string)
 	token, _ := request.Params.Arguments["token"].(string)
 
 	// Initialize ENBUILD SDK client
-	options := []localenbuild.ClientOption{}
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	}
-
-	client, err := localenbuild.NewClient(options...)
+	client, err := initializeClient(token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize ENBUILD client: %v", err)
+		return formatErrorResponse("Failed to initialize ENBUILD client", err)
 	}
 
 	// Filter catalogs by VCS
 	catalogs, err := client.FilterCatalogsByVCS(vcs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to filter catalogs: %v", err)
+		return formatErrorResponse("Failed to list catalogs", err)
 	}
 
 	// Format the response
-	var result strings.Builder
-	result.WriteString(fmt.Sprintf("Catalogs from VCS '%s':\n", vcs))
-	if len(catalogs) == 0 {
-		result.WriteString("No catalogs found matching the filter criteria.\n")
-	} else {
-		for _, catalog := range catalogs {
-			result.WriteString(fmt.Sprintf("- ID: %v, Name: %s, Type: %s, VCS: %s, Slug: %s\n",
-				catalog.ID, catalog.Name, catalog.Type, catalog.VCS, catalog.Slug))
-		}
+	response := CatalogResponse{
+		Success: true,
+		Count:   len(catalogs),
+		Data:    catalogs,
+		Message: fmt.Sprintf("Successfully retrieved %d catalogs for VCS: %s", len(catalogs), vcs),
 	}
 
-	return mcp.NewToolResultText(result.String()), nil
+	return formatJSONResponse(response)
+}
+
+func getCatalogDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	id, _ := request.Params.Arguments["id"].(string)
+	token, _ := request.Params.Arguments["token"].(string)
+
+	// Initialize ENBUILD SDK client
+	client, err := initializeClient(token)
+	if err != nil {
+		return formatErrorResponse("Failed to initialize ENBUILD client", err)
+	}
+
+	// Get catalog details
+	catalog, err := client.GetCatalog(id, nil)
+	if err != nil {
+		return formatErrorResponse("Failed to get catalog details", err)
+	}
+
+	// Format the response
+	response := CatalogResponse{
+		Success: true,
+		Count:   1,
+		Data:    catalog,
+		Message: fmt.Sprintf("Successfully retrieved details for catalog ID: %s", id),
+	}
+
+	return formatJSONResponse(response)
+}
+
+func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	name, _ := request.Params.Arguments["name"].(string)
+	catalogType, _ := request.Params.Arguments["type"].(string)
+	vcs, _ := request.Params.Arguments["vcs"].(string)
+	token, _ := request.Params.Arguments["token"].(string)
+
+	// Initialize ENBUILD SDK client
+	client, err := initializeClient(token)
+	if err != nil {
+		return formatErrorResponse("Failed to initialize ENBUILD client", err)
+	}
+
+	// Create options for filtering
+	options := &localenbuild.CatalogListOptions{
+		Name: name,
+	}
+	
+	// Add type filter if provided
+	if catalogType != "" {
+		options.Type = catalogType
+	}
+	
+	// Add VCS filter if provided
+	if vcs != "" {
+		options.VCS = vcs
+	}
+
+	// Search catalogs with filters
+	catalogs, err := client.ListCatalogs(options)
+	if err != nil {
+		return formatErrorResponse("Failed to search catalogs", err)
+	}
+
+	// Format the response
+	filterDesc := fmt.Sprintf("name: '%s'", name)
+	if catalogType != "" {
+		filterDesc += fmt.Sprintf(", type: '%s'", catalogType)
+	}
+	if vcs != "" {
+		filterDesc += fmt.Sprintf(", vcs: '%s'", vcs)
+	}
+	
+	response := CatalogResponse{
+		Success: true,
+		Count:   len(catalogs),
+		Data:    catalogs,
+		Message: fmt.Sprintf("Found %d catalogs matching filters: %s", len(catalogs), filterDesc),
+	}
+
+	return formatJSONResponse(response)
+}
+
+// Helper functions for consistent response formatting
+func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
+	jsonData, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting JSON response: %v", err)
+	}
+	
+	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+func formatErrorResponse(message string, err error) (*mcp.CallToolResult, error) {
+	response := CatalogResponse{
+		Success: false,
+		Message: fmt.Sprintf("%s: %v", message, err),
+	}
+	
+	jsonData, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting error response: %v", err)
+	}
+	
+	return mcp.NewToolResultText(string(jsonData)), nil
 }

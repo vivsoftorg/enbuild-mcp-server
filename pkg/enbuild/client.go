@@ -6,10 +6,18 @@ import (
 	"github.com/vivsoftorg/enbuild-sdk-go/pkg/enbuild"
 )
 
+// CatalogListOptions represents options for listing catalogs
+type CatalogListOptions struct {
+	Name string
+	Type string
+	VCS  string
+}
+
 // Client represents a wrapper around the ENBUILD SDK client
 type Client struct {
 	sdkClient *enbuild.Client
 	profile   string
+	baseURL   string
 }
 
 // ClientOption is a function that configures a Client
@@ -26,6 +34,13 @@ func WithProfile(profile string) ClientOption {
 func WithAuthToken(token string) ClientOption {
 	return func(c *Client) {
 		// This will be used when creating the SDK client
+	}
+}
+
+// WithBaseURL sets the base URL for the ENBUILD API
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *Client) {
+		c.baseURL = baseURL
 	}
 }
 
@@ -50,6 +65,11 @@ func NewClient(options ...ClientOption) (*Client, error) {
 		enbuild.WithDebug(false),
 	}
 
+	// Add base URL if provided
+	if client.baseURL != "" {
+		sdkOptions = append(sdkOptions, enbuild.WithBaseURL(client.baseURL))
+	}
+
 	// Create the SDK client
 	sdkClient, err := enbuild.NewClient(sdkOptions...)
 	if err != nil {
@@ -60,50 +80,38 @@ func NewClient(options ...ClientOption) (*Client, error) {
 	return client, nil
 }
 
-// ListCatalogs returns a list of ENBUILD catalogs
-func (c *Client) ListCatalogs(opts ...*enbuild.CatalogListOptions) ([]*enbuild.Catalog, error) {
-	var options *enbuild.CatalogListOptions
-	if len(opts) > 0 && opts[0] != nil {
-		options = opts[0]
-	} else {
-		options = &enbuild.CatalogListOptions{}
+// ListCatalogs returns a list of ENBUILD catalogs with optional filters
+func (c *Client) ListCatalogs(options *CatalogListOptions) ([]*enbuild.Catalog, error) {
+	// Convert our options to SDK options
+	sdkOptions := &enbuild.CatalogListOptions{}
+	
+	if options != nil {
+		sdkOptions.Name = options.Name
+		sdkOptions.Type = options.Type
+		sdkOptions.VCS = options.VCS
 	}
 
-	return c.sdkClient.Catalogs.List(options)
+	return c.sdkClient.Catalogs.List(sdkOptions)
 }
 
 // GetCatalog returns details of a specific ENBUILD catalog
-func (c *Client) GetCatalog(id string, opts *enbuild.CatalogListOptions) (*enbuild.Catalog, error) {
-	if opts == nil {
-		opts = &enbuild.CatalogListOptions{}
+func (c *Client) GetCatalog(id string, options *CatalogListOptions) (*enbuild.Catalog, error) {
+	sdkOptions := &enbuild.CatalogListOptions{}
+	
+	if options != nil {
+		sdkOptions.Name = options.Name
+		sdkOptions.Type = options.Type
+		sdkOptions.VCS = options.VCS
 	}
 
-	return c.sdkClient.Catalogs.Get(id, opts)
-}
-
-// SearchCatalogs searches for catalogs by name
-func (c *Client) SearchCatalogs(name string) ([]*enbuild.Catalog, error) {
-	options := &enbuild.CatalogListOptions{
-		Name: name,
-	}
-
-	return c.sdkClient.Catalogs.List(options)
-}
-
-// FilterCatalogsByType filters catalogs by type
-func (c *Client) FilterCatalogsByType(catalogType string) ([]*enbuild.Catalog, error) {
-	options := &enbuild.CatalogListOptions{
-		Type: catalogType,
-	}
-
-	return c.sdkClient.Catalogs.List(options)
+	return c.sdkClient.Catalogs.Get(id, sdkOptions)
 }
 
 // FilterCatalogsByVCS filters catalogs by VCS
 func (c *Client) FilterCatalogsByVCS(vcs string) ([]*enbuild.Catalog, error) {
-	options := &enbuild.CatalogListOptions{
+	options := &CatalogListOptions{
 		VCS: vcs,
 	}
 
-	return c.sdkClient.Catalogs.List(options)
+	return c.ListCatalogs(options)
 }

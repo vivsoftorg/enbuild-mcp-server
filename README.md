@@ -6,11 +6,9 @@ A Model Context Protocol (MCP) server for the ENBUILD Platform that provides too
 
 This MCP server integrates with the ENBUILD SDK to provide a set of tools for managing ENBUILD catalogs:
 
-- `list-catalogs`: List all ENBUILD catalogs
-- `get-catalog`: Get details of a specific ENBUILD catalog
-- `search-catalogs`: Search for ENBUILD catalogs by name
-- `filter-catalogs-by-type`: Filter ENBUILD catalogs by type
-- `filter-catalogs-by-vcs`: Filter ENBUILD catalogs by VCS
+- `list_catalogs`: Lists all catalogs for a given VCS type (GITHUB or GITLAB)
+- `get_catalog_details`: Fetches details of all catalogs that match a specific catalog ID
+- `search_catalogs`: Search for catalogs using name, filtered by catalog type and VCS
 
 ## Installation
 
@@ -70,6 +68,10 @@ or explicitly:
         Transport type (stdio or sse) (default "stdio")
 ```
 
+You can also set the following environment variables instead of using command-line flags:
+- `ENBUILD_API_TOKEN`: API token for ENBUILD
+- `ENBUILD_BASE_URL`: Base URL for the ENBUILD API
+
 ### Registering with Amazon Q
 
 To use this MCP server with Amazon Q, add it to your Amazon Q configuration:
@@ -104,20 +106,33 @@ q config add-mcp-server enbuild http://localhost:8080
 Once registered, you can use the ENBUILD tools in Amazon Q:
 
 ```
-# List all catalogs
-enbuild___list-catalogs
+# List all catalogs for a specific VCS
+enbuild___list_catalogs --vcs "GITHUB"
 
 # Get catalog details
-enbuild___get-catalog --id "catalog-id"
+enbuild___get_catalog_details --id "catalog-id"
 
-# Search for catalogs by name
-enbuild___search-catalogs --name "terraform"
+# Search for catalogs by name with required filters
+enbuild___search_catalogs --name "terraform" --type "terraform" --vcs "GITHUB"
+```
 
-# Filter catalogs by type
-enbuild___filter-catalogs-by-type --type "terraform"
+All tools return a consistent JSON response format:
 
-# Filter catalogs by VCS
-enbuild___filter-catalogs-by-vcs --vcs "github"
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved catalogs",
+  "count": 5,
+  "data": [
+    {
+      "id": "catalog-id",
+      "name": "catalog-name",
+      "type": "terraform",
+      "vcs": "GITHUB",
+      "slug": "catalog-slug"
+    }
+  ]
+}
 ```
 
 ## Development
@@ -125,5 +140,3 @@ enbuild___filter-catalogs-by-vcs --vcs "github"
 ### Adding new tools
 
 To add new tools, modify the `registerTools` function in `mcpenbuild.go` and implement the corresponding handler function.
-
-
