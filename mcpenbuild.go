@@ -28,10 +28,10 @@ type enbuildConfig struct {
 }
 
 func (ec *enbuildConfig) addFlags() {
-	flag.StringVar(&ec.username, "username", "", "API username for ENBUILD")
-	flag.StringVar(&ec.password, "password", "", "API password for ENBUILD")
+	flag.StringVar(&ec.username, "username", "", "username for ENBUILD")
+	flag.StringVar(&ec.password, "password", "", "password for ENBUILD")
 	flag.BoolVar(&ec.debug, "debug", false, "Enable debug mode for the ENBUILD client")
-	flag.StringVar(&ec.baseURL, "base-url", "https://enbuild.vivplatform.io", "Base URL for the ENBUILD API")
+	flag.StringVar(&ec.baseURL, "base-url", "https://enbuild.vivplatform.io", "Base URL for the ENBUILD")
 }
 
 type CatalogResponse struct {
@@ -113,7 +113,7 @@ func setEnvOrExit(envVar, value, flagName string) {
 	if value == "" {
 		value = os.Getenv(envVar)
 		if value == "" {
-			log.Fatalf("Error: ENVBUILD API %s is required. Provide it via %s or %s environment variable", envVar, flagName, envVar)
+			log.Fatalf("Error: ENVBUILD %s is required. Provide it via %s or %s environment variable", envVar, flagName, envVar)
 		}
 	}
 	os.Setenv(envVar, value)

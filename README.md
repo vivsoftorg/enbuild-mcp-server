@@ -54,25 +54,26 @@ or explicitly:
 ### Command-line Options
 
 ```
-  -base-url string
-        Base URL for the ENBUILD API
+ -base-url string
+    	Base URL for the ENBUILD (default "https://enbuild.vivplatform.io")
   -debug
-        Enable debug mode for the ENBUILD client
+    	Enable debug mode for the ENBUILD client
   -log-level string
-        Log level (debug, info, warn, error) (default "info")
+    	Log level (debug, info, warn, error) (default "info")
+  -password string
+    	password for ENBUILD
   -sse-address string
-        The host and port to start the SSE server on (default ":8080")
-  -t string
-        Transport type (stdio or sse) (default "stdio")
-  -token string
-        API token for ENBUILD
+    	The host and port to start the SSE server on (default ":8080")
   -transport string
-        Transport type (stdio or sse) (default "stdio")
+    	Transport type (stdio or sse) (default "stdio")
+  -username string
+    	username for ENBUILD
 ```
 
 You can also set the following environment variables instead of using command-line flags:
-- `ENBUILD_API_TOKEN`: API token for ENBUILD
-- `ENBUILD_BASE_URL`: Base URL for the ENBUILD API
+- `ENBUILD_USERNAME`: username for ENBUILD
+- `ENBUILD_PASSWORD`: password for ENBUILD
+- `ENBUILD_BASE_URL`: Base URL for the ENBUILD
 
 ### Registering with Amazon Q
 

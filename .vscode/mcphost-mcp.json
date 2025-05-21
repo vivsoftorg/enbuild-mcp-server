@@ -8,7 +8,9 @@
         "https://enbuild-dev.vivplatform.io"
       ],
       "env": {
-        "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io"
+        "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io",
+        "ENBUILD_USERNAME": "appdev@vivsoft.io",
+        "ENBUILD_PASSWORD": "vivsoft123"
       }
     }
   }
