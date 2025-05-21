@@ -1,5 +1,5 @@
 {
-  "servers": {
+  "mcpServers": {
     "enbuild": {
       "type": "stdio",
       "command": "/usr/local/bin/mcp-server-enbuild",

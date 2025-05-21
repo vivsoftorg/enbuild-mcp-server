@@ -15,7 +15,6 @@ clean:
 fmt:
 	@echo "Formatting Go code..."
 	go fmt ./
-	go fmt ./pkg/enbuild
 
 test:
 	@echo "Running tests..."

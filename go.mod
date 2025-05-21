@@ -6,7 +6,7 @@ toolchain go1.23.9
 
 require (
 	github.com/mark3labs/mcp-go v0.27.1
-	github.com/vivsoftorg/enbuild-sdk-go v0.0.1
+	github.com/vivsoftorg/enbuild-sdk-go v0.0.2
 )
 
 require (

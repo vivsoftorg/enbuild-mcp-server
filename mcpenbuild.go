@@ -11,7 +11,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	localenbuild "github.com/vivsoftorg/mcp-server-enbuild/pkg/enbuild"
+	"github.com/vivsoftorg/enbuild-sdk-go/pkg/enbuild"
 )
 
 const (
@@ -20,20 +20,20 @@ const (
 	serverVersion     = "0.0.1"
 )
 
-// Configuration for the ENBUILD client
 type enbuildConfig struct {
-	token   string
-	debug   bool
-	baseURL string
+	username string
+	password string
+	debug    bool
+	baseURL  string
 }
 
 func (ec *enbuildConfig) addFlags() {
-	flag.StringVar(&ec.token, "token", "", "API token for ENBUILD")
+	flag.StringVar(&ec.username, "username", "", "API username for ENBUILD")
+	flag.StringVar(&ec.password, "password", "", "API password for ENBUILD")
 	flag.BoolVar(&ec.debug, "debug", false, "Enable debug mode for the ENBUILD client")
-	flag.StringVar(&ec.baseURL, "base-url", "", "Base URL for the ENBUILD API")
+	flag.StringVar(&ec.baseURL, "base-url", "https://enbuild.vivplatform.io", "Base URL for the ENBUILD API")
 }
 
-// CatalogResponse is a standardized response format for catalog data
 type CatalogResponse struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message,omitempty"`
@@ -42,60 +42,30 @@ type CatalogResponse struct {
 }
 
 func newServer() *server.MCPServer {
-	s := server.NewMCPServer(
-		serverName,
-		serverVersion,
-		server.WithToolCapabilities(true),
-		server.WithRecovery(),
-	)
+	s := server.NewMCPServer(serverName, serverVersion, server.WithToolCapabilities(true), server.WithRecovery())
 	registerTools(s)
 	return s
 }
 
 func registerTools(s *server.MCPServer) {
-	s.AddTool(mcp.NewTool("list_catalogs",
-		mcp.WithDescription("Lists all catalogs for a given VCS type (GITHUB or GITLAB). Use this tool when the user wants to list or view all catalogs for a specific version control system (VCS)."),
-		mcp.WithString("vcs",
-			mcp.Description("VCS to filter by (GITHUB or GITLAB)"),
-			mcp.Required(),
-		),
-		mcp.WithString("token",
-			mcp.Description("API token to use"),
-		),
-	), listCatalogs)
-
 	s.AddTool(mcp.NewTool("get_catalog_details",
-		mcp.WithDescription("Fetches details of all catalogs that match a specific catalog ID. Use this tool when the user wants to get detailed information about a specific catalog."),
-		mcp.WithString("id",
-			mcp.Description("ID of the catalog"),
-			mcp.Required(),
-		),
-		mcp.WithString("token",
-			mcp.Description("API token to use"),
-		),
+		mcp.WithDescription("Fetches details of all catalogs that match a specific catalog ID."),
+		mcp.WithString("id", mcp.Description("ID of the catalog"), mcp.Required()),
+		mcp.WithString("username", mcp.Description("API username to use")),
+		mcp.WithString("password", mcp.Description("API password to use")),
 	), getCatalogDetails)
 
 	s.AddTool(mcp.NewTool("search_catalogs",
-		mcp.WithDescription("Search for catalogs using name, filtered by catalog type and VCS. Use this tool when the user wants to search for catalogs by name with specific filters."),
-		mcp.WithString("name",
-			mcp.Description("Name to search for"),
-			mcp.Required(),
-		),
-		mcp.WithString("type",
-			mcp.Description("Type to filter by (e.g., terraform, ansible)"),
-			mcp.Required(),
-		),
-		mcp.WithString("vcs",
-			mcp.Description("VCS to filter by (GITHUB or GITLAB)"),
-			mcp.Required(),
-		),
-		mcp.WithString("token",
-			mcp.Description("API token to use"),
-		),
-	), searchCatalogs)
+		mcp.WithDescription("Search for catalogs using name, filtered by catalog type and VCS."),
+		mcp.WithString("name", mcp.Description("Name to search for"), mcp.Required()),
+		mcp.WithString("type", mcp.Description("Type to filter by (e.g., terraform, ansible)"), mcp.Required()),
+		mcp.WithString("vcs", mcp.Description("VCS to filter by (GITHUB or GITLAB)"), mcp.Required()),
+		mcp.WithString("username", mcp.Description("API username to use")),
+		mcp.WithString("password", mcp.Description("API password to use")),
+	), listCatalogs)
 }
 
-func run(transport, addr string, logLevel string, ec enbuildConfig) error {
+func run(transport, addr, logLevel string, ec enbuildConfig) error {
 	log.SetFlags(0)
 	log.Printf("[INFO] Starting ENBUILD MCP server with transport: %s", transport)
 
@@ -129,61 +99,57 @@ func main() {
 
 	flag.Parse()
 
-	// Check for token and base URL from flags or environment variables
-	if ec.token == "" {
-		ec.token = os.Getenv("ENBUILD_API_TOKEN")
-		if ec.token == "" {
-			log.Fatalf("Error: ENBUILD API token is required. Provide it via --token flag or ENBUILD_API_TOKEN environment variable")
-		}
-	}
-
-	if ec.baseURL == "" {
-		ec.baseURL = os.Getenv("ENBUILD_BASE_URL")
-		if ec.baseURL == "" {
-			log.Fatalf("Error: ENBUILD base URL is required. Provide it via --base-url flag or ENBUILD_BASE_URL environment variable")
-		}
-	}
-
-	// Set environment variables from flags for consistent access
-	os.Setenv("ENBUILD_API_TOKEN", ec.token)
-	os.Setenv("ENBUILD_BASE_URL", ec.baseURL)
+	// Retrieve credentials and baseURL, set them as environment variables
+	setEnvOrExit("ENBUILD_USERNAME", ec.username, "--username flag")
+	setEnvOrExit("ENBUILD_PASSWORD", ec.password, "--password flag")
+	setEnvOrExit("ENBUILD_BASE_URL", ec.baseURL, "--base-url flag")
 
 	if err := run(transport, *addr, *logLevel, ec); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 }
 
-// initializeClient creates a new ENBUILD client with the provided token
-func initializeClient(token string) (*localenbuild.Client, error) {
-	options := []localenbuild.ClientOption{}
-
-	// Use token from parameter or environment variable
-	if token != "" {
-		options = append(options, localenbuild.WithAuthToken(token))
-	} else if envToken := os.Getenv("ENBUILD_API_TOKEN"); envToken != "" {
-		options = append(options, localenbuild.WithAuthToken(envToken))
-	} else {
-		return nil, fmt.Errorf("API token is required but not provided")
+func setEnvOrExit(envVar, value, flagName string) {
+	if value == "" {
+		value = os.Getenv(envVar)
+		if value == "" {
+			log.Fatalf("Error: ENVBUILD API %s is required. Provide it via %s or %s environment variable", envVar, flagName, envVar)
+		}
 	}
+	os.Setenv(envVar, value)
+}
 
-	// Use base URL from environment variable
-	baseURL := os.Getenv("ENBUILD_BASE_URL")
+func prepareClientOptions(baseURL, username, password string) []enbuild.ClientOption {
+	debug := false
+	if os.Getenv("ENBUILD_DEBUG") == "true" {
+		debug = true
+	}
+	return []enbuild.ClientOption{
+		enbuild.WithDebug(debug),
+		enbuild.WithBaseURL(baseURL),
+		enbuild.WithKeycloakAuth(username, password),
+	}
+}
+
+func getCredentials(request mcp.CallToolRequest) (string, string, string, error) {
+	username, _ := request.Params.Arguments["username"].(string)
+	password, _ := request.Params.Arguments["password"].(string)
+	baseURL, _ := request.Params.Arguments["base_url"].(string)
 	if baseURL == "" {
-		return nil, fmt.Errorf("base URL is required but not provided")
+		baseURL = os.Getenv("ENBUILD_BASE_URL")
 	}
-
-	options = append(options, localenbuild.WithBaseURL(baseURL))
-
-	return localenbuild.NewClient(options...)
+	if username == "" {
+		username = os.Getenv("ENBUILD_USERNAME")
+	}
+	if password == "" {
+		password = os.Getenv("ENBUILD_PASSWORD")
+	}
+	if baseURL == "" || username == "" || password == "" {
+		return "", "", "", fmt.Errorf("Missing required credentials: baseURL, username, or password")
+	}
+	return baseURL, username, password, nil
 }
 
-// Helper function to get token from request
-func getToken(request mcp.CallToolRequest) string {
-	token, _ := request.Params.Arguments["token"].(string)
-	return token
-}
-
-// Helper function to get search parameters from request
 func getSearchParams(request mcp.CallToolRequest) (string, string, string) {
 	name, _ := request.Params.Arguments["name"].(string)
 	catalogType, _ := request.Params.Arguments["type"].(string)
@@ -191,36 +157,38 @@ func getSearchParams(request mcp.CallToolRequest) (string, string, string) {
 	return name, catalogType, vcs
 }
 
-// Tool implementations
 func listCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	vcs, _ := request.Params.Arguments["vcs"].(string)
 
-	// Validate VCS parameter
 	if vcs == "" {
 		return formatErrorResponse("Missing required parameter", fmt.Errorf("VCS parameter is required (GITHUB or GITLAB)"))
 	}
 
-	// Normalize VCS value to uppercase
 	vcs = strings.ToUpper(vcs)
 
-	// Validate VCS value
 	if vcs != "GITHUB" && vcs != "GITLAB" {
 		return formatErrorResponse("Invalid VCS value", fmt.Errorf("VCS must be either GITHUB or GITLAB"))
 	}
 
-	// Initialize ENBUILD SDK client
-	client, err := initializeClient(getToken(request))
+	baseURL, username, password, err := getCredentials(request)
+	if err != nil {
+		return formatErrorResponse("Missing credentials", err)
+	}
+
+	client, err := initializeClient(baseURL, username, password)
 	if err != nil {
 		return formatErrorResponse("Failed to initialize ENBUILD client", err)
 	}
 
-	// Filter catalogs by VCS
-	catalogs, err := client.FilterCatalogsByVCS(vcs)
+	opts := &enbuild.CatalogListOptions{
+		VCS: vcs,
+	}
+
+	catalogs, err := client.Catalogs.List(opts)
 	if err != nil {
 		return formatErrorResponse("Failed to list catalogs", err)
 	}
 
-	// Format the response
 	response := CatalogResponse{
 		Success: true,
 		Count:   len(catalogs),
@@ -237,19 +205,21 @@ func getCatalogDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		return formatErrorResponse("Missing required parameter", fmt.Errorf("catalog ID is required"))
 	}
 
-	// Initialize ENBUILD SDK client
-	client, err := initializeClient(getToken(request))
+	baseURL, username, password, err := getCredentials(request)
+	if err != nil {
+		return formatErrorResponse("Missing credentials", err)
+	}
+
+	client, err := initializeClient(baseURL, username, password)
 	if err != nil {
 		return formatErrorResponse("Failed to initialize ENBUILD client", err)
 	}
 
-	// Get catalog details
-	catalog, err := client.GetCatalog(id, nil)
+	catalog, err := client.Catalogs.Get(id, nil)
 	if err != nil {
 		return formatErrorResponse("Failed to get catalog details", err)
 	}
 
-	// Format the response
 	response := CatalogResponse{
 		Success: true,
 		Count:   1,
@@ -263,7 +233,6 @@ func getCatalogDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, catalogType, vcs := getSearchParams(request)
 
-	// Validate required parameters
 	if name == "" {
 		return formatErrorResponse("Missing required parameter", fmt.Errorf("name parameter is required"))
 	}
@@ -276,34 +245,33 @@ func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 		return formatErrorResponse("Missing required parameter", fmt.Errorf("VCS parameter is required (GITHUB or GITLAB)"))
 	}
 
-	// Normalize VCS value to uppercase
 	vcs = strings.ToUpper(vcs)
 
-	// Validate VCS value
 	if vcs != "GITHUB" && vcs != "GITLAB" {
-		return formatErrorResponse("Invalid VCS value", fmt.Errorf("VCS must be either GITHUB or GITLAB"))
+		return formatErrorResponse("Invalid VCS value", fmt.Errorf("VCS must be either \"GITHUB\" or \"GITLAB\""))
 	}
 
-	// Initialize ENBUILD SDK client
-	client, err := initializeClient(getToken(request))
+	baseURL, username, password, err := getCredentials(request)
+	if err != nil {
+		return formatErrorResponse("Missing credentials", err)
+	}
+
+	client, err := initializeClient(baseURL, username, password)
 	if err != nil {
 		return formatErrorResponse("Failed to initialize ENBUILD client", err)
 	}
 
-	// Create options for filtering
-	options := &localenbuild.CatalogListOptions{
+	options := &enbuild.CatalogListOptions{
 		Name: name,
 		Type: catalogType,
 		VCS:  vcs,
 	}
 
-	// Search catalogs with filters
-	catalogs, err := client.ListCatalogs(options)
+	catalogs, err := client.Catalogs.List(options)
 	if err != nil {
 		return formatErrorResponse("Failed to search catalogs", err)
 	}
 
-	// Format the response
 	filterDesc := fmt.Sprintf("name: '%s', type: '%s', vcs: '%s'", name, catalogType, vcs)
 
 	response := CatalogResponse{
@@ -316,7 +284,6 @@ func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	return formatJSONResponse(response)
 }
 
-// formatJSONResponse formats the response as JSON
 func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
@@ -326,7 +293,6 @@ func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
 
-// formatErrorResponse formats an error response
 func formatErrorResponse(message string, err error) (*mcp.CallToolResult, error) {
 	response := CatalogResponse{
 		Success: false,
@@ -339,4 +305,9 @@ func formatErrorResponse(message string, err error) (*mcp.CallToolResult, error)
 	}
 
 	return mcp.NewToolResultText(string(jsonData)), nil
+}
+
+func initializeClient(baseURL, username, password string) (*enbuild.Client, error) {
+	options := prepareClientOptions(baseURL, username, password)
+	return enbuild.NewClient(options...)
 }
