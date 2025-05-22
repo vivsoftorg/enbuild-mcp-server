@@ -5,8 +5,8 @@ build:
 	go build -o bin/mcp-server-enbuild mcpenbuild.go
 
 run: build
-	@echo "Running MCP server..."
-	./mcp-server-enbuild
+	@echo "Running MCP server using mcphost..."
+	/usr/local/bin/mcphost -m ollama:llama3.2:latest --config .vscode/mcphost-mcp.json
 
 clean:
 	@echo "Cleaning up..."
@@ -15,7 +15,6 @@ clean:
 fmt:
 	@echo "Formatting Go code..."
 	go fmt ./
-	go fmt ./pkg/enbuild
 
 test:
 	@echo "Running tests..."

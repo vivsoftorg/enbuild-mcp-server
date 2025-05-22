@@ -27,6 +27,8 @@ go build
 
 ## Usage
 
+> **Note:** The ENBUILD API token and base URL are required. You must provide them either via command-line flags or environment variables.
+
 ### Starting the server
 
 The server supports two transport modes:
@@ -52,25 +54,26 @@ or explicitly:
 ### Command-line Options
 
 ```
-  -base-url string
-        Base URL for the ENBUILD API
+ -base-url string
+    	Base URL for the ENBUILD (default "https://enbuild.vivplatform.io")
   -debug
-        Enable debug mode for the ENBUILD client
+    	Enable debug mode for the ENBUILD client
   -log-level string
-        Log level (debug, info, warn, error) (default "info")
+    	Log level (debug, info, warn, error) (default "info")
+  -password string
+    	password for ENBUILD
   -sse-address string
-        The host and port to start the SSE server on (default ":8080")
-  -t string
-        Transport type (stdio or sse) (default "stdio")
-  -token string
-        API token for ENBUILD
+    	The host and port to start the SSE server on (default ":8080")
   -transport string
-        Transport type (stdio or sse) (default "stdio")
+    	Transport type (stdio or sse) (default "stdio")
+  -username string
+    	username for ENBUILD
 ```
 
 You can also set the following environment variables instead of using command-line flags:
-- `ENBUILD_API_TOKEN`: API token for ENBUILD
-- `ENBUILD_BASE_URL`: Base URL for the ENBUILD API
+- `ENBUILD_USERNAME`: username for ENBUILD
+- `ENBUILD_PASSWORD`: password for ENBUILD
+- `ENBUILD_BASE_URL`: Base URL for the ENBUILD
 
 ### Registering with Amazon Q
 
@@ -84,22 +87,57 @@ q config add-mcp-server enbuild stdio
 q config add-mcp-server enbuild http://localhost:8080
 ```
 
+### Usage with VS Code
+
+Add the following JSON block to your User Settings (JSON) file in VS Code. You can do this by pressing Ctrl + Shift + P and typing Preferences: Open User Settings (JSON).
+
+```json
+{
+  "servers": {
+    "enbuild": {
+      "type": "stdio",
+      "command": "/usr/local/bin/mcp-server-enbuild",
+      "args": [
+        "--base-url",
+        "https://enbuild-dev.vivplatform.io"
+      ],
+      "env": {
+        "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io",
+        "ENBUILD_USERNAME": "username",
+        "ENBUILD_PASSWORD": "password"
+      },
+    }
+  }
+}
+
+```
+
 ### Registering with Other tools like Claude Desktop
 
 ```
 {
   "mcpServers": {
     "enbuild": {
-      "command": "mcp-server-enbuild",
-      "args": [],
+      "type": "stdio",
+      "command": "/usr/local/bin/mcp-server-enbuild",
+      "args": [
+        "--base-url",
+        "https://enbuild-dev.vivplatform.io"
+      ],
       "env": {
-        "ENBUILD_BASE_URL": "https://enbuild-dev.vivplatform.io/enbuild-bk/",
-        "ENBUILD_API_TOKEN": "your_api_token_here"
+        "ENBUILD_BASE_URL": "https://enbuild.vivplatform.io",
+        "ENBUILD_USERNAME": "username",
+        "ENBUILD_PASSWORD": "password"
       }
     }
   }
 }
 ```
+
+## Tool Configuration
+The MCP server provides the following tools:
+- `search_catalogs`: List all catalogs for a specific VCS
+- `get_catalog_details`: Get catalog details by ID
 
 ### Using the tools
 
@@ -107,13 +145,13 @@ Once registered, you can use the ENBUILD tools in Amazon Q:
 
 ```
 # List all catalogs for a specific VCS
-enbuild___list_catalogs --vcs "GITHUB"
+search_catalogs --vcs "GITHUB"
 
 # Get catalog details
-enbuild___get_catalog_details --id "catalog-id"
+get_catalog_details --id "catalog-id"
 
 # Search for catalogs by name with required filters
-enbuild___search_catalogs --name "terraform" --type "terraform" --vcs "GITHUB"
+search_catalogs --name "terraform" --type "terraform" --vcs "GITHUB"
 ```
 
 All tools return a consistent JSON response format:
