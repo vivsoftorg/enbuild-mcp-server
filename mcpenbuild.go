@@ -227,60 +227,6 @@ func getCatalogDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 	return formatJSONResponse(response)
 }
 
-// func searchCatalogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-// 	name, catalogType, vcs := getSearchParams(request)
-
-// 	if name == "" {
-// 		return formatErrorResponse("Missing required parameter", fmt.Errorf("name parameter is required"))
-// 	}
-
-// 	if catalogType == "" {
-// 		return formatErrorResponse("Missing required parameter", fmt.Errorf("type parameter is required"))
-// 	}
-
-// 	if vcs == "" {
-// 		return formatErrorResponse("Missing required parameter", fmt.Errorf("VCS parameter is required (GITHUB or GITLAB)"))
-// 	}
-
-// 	vcs = strings.ToUpper(vcs)
-
-// 	if vcs != "GITHUB" && vcs != "GITLAB" {
-// 		return formatErrorResponse("Invalid VCS value", fmt.Errorf("VCS must be either \"GITHUB\" or \"GITLAB\""))
-// 	}
-
-// 	baseURL, username, password, err := getCredentials(request)
-// 	if err != nil {
-// 		return formatErrorResponse("Missing credentials", err)
-// 	}
-
-// 	client, err := initializeClient(baseURL, username, password)
-// 	if err != nil {
-// 		return formatErrorResponse("Failed to initialize ENBUILD client", err)
-// 	}
-
-// 	options := &enbuild.CatalogListOptions{
-// 		Name: name,
-// 		Type: catalogType,
-// 		VCS:  vcs,
-// 	}
-
-// 	catalogs, err := client.Catalogs.List(options)
-// 	if err != nil {
-// 		return formatErrorResponse("Failed to search catalogs", err)
-// 	}
-
-// 	filterDesc := fmt.Sprintf("name: '%s', type: '%s', vcs: '%s'", name, catalogType, vcs)
-
-// 	response := CatalogResponse{
-// 		Success: true,
-// 		Count:   len(catalogs),
-// 		Data:    catalogs,
-// 		Message: fmt.Sprintf("Found %d catalogs matching filters: %s", len(catalogs), filterDesc),
-// 	}
-
-// 	return formatJSONResponse(response)
-// }
-
 func formatJSONResponse(response CatalogResponse) (*mcp.CallToolResult, error) {
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
