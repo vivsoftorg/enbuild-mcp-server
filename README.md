@@ -21,48 +21,7 @@ A Model Context Protocol (MCP) server for the ENBUILD Platform. Provides tools f
 
 ### Prerequisites
 
-- Go 1.23 or later
-- AWS credentials (if required by your environment)
-
-### Build
-
-```bash
-git clone https://github.com/vivsoftorg/mcp-server-enbuild.git
-cd mcp-server-enbuild
-go build -o mcp-server-enbuild
-```
-
-### Run
-
-#### Stdio (default)
-
-```bash
-./mcp-server-enbuild
-```
-
-#### SSE (HTTP)
-
-```bash
-./mcp-server-enbuild --transport sse --sse-address :8080
-```
-
----
-
-## Configuration
-
-You can configure the server using command-line flags or environment variables:
-
-| Flag            | Env Var              | Description                                   | Default                        |
-|-----------------|---------------------|-----------------------------------------------|--------------------------------|
-| `-base-url`     | `ENBUILD_BASE_URL`   | Base URL for ENBUILD                          | https://enbuild.vivplatform.io |
-| `-username`     | `ENBUILD_USERNAME`   | Username for ENBUILD                          |                                |
-| `-password`     | `ENBUILD_PASSWORD`   | Password for ENBUILD                          |                                |
-| `-transport`    |                      | Transport type: `stdio` or `sse`              | stdio                          |
-| `-sse-address`  |                      | Host:port for SSE server                      | :8080                          |
-| `-log-level`    |                      | Log level: debug, info, warn, error           | info                           |
-| `-debug`        |                      | Enable debug mode                             | false                          |
-
----
+- Download the `mcp-server-enbuild` binary from the [releases page](https://github.com/vivsoftorg/enbuild-mcp-server/releases).
 
 ## Usage
 
@@ -162,6 +121,42 @@ All tools return a consistent JSON response:
 ## Development
 
 To add new tools, update the `registerTools` function in [`mcpenbuild.go`](mcpenbuild.go) and implement the corresponding handler.
+
+### Build from Source
+To build the project from source, ensure you have Go installed and run the following commands:
+
+```bash
+git clone https://github.com/vivsoftorg/mcp-server-enbuild.git
+cd mcp-server-enbuild
+go build -o mcp-server-enbuild
+```
+
+### Run
+
+#### Stdio (default)
+```bash
+./mcp-server-enbuild
+
+
+#### SSE (HTTP)
+
+```bash
+./mcp-server-enbuild --transport sse --sse-address :8080
+```
+
+## Configuration
+
+You can configure the server using command-line flags or environment variables:
+
+| Flag            | Env Var              | Description                                   | Default                        |
+|-----------------|---------------------|-----------------------------------------------|--------------------------------|
+| `-base-url`     | `ENBUILD_BASE_URL`   | Base URL for ENBUILD                          | https://enbuild.vivplatform.io |
+| `-username`     | `ENBUILD_USERNAME`   | Username for ENBUILD                          |                                |
+| `-password`     | `ENBUILD_PASSWORD`   | Password for ENBUILD                          |                                |
+| `-transport`    |                      | Transport type: `stdio` or `sse`              | stdio                          |
+| `-sse-address`  |                      | Host:port for SSE server                      | :8080                          |
+| `-log-level`    |                      | Log level: debug, info, warn, error           | info                           |
+| `-debug`        |                      | Enable debug mode                             | false                          |
 
 ---
 
