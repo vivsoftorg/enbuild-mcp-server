@@ -212,7 +212,7 @@ func getCatalogDetails(ctx context.Context, request mcp.CallToolRequest) (*mcp.C
 		return formatErrorResponse("Failed to initialize ENBUILD client", err)
 	}
 
-	catalog, err := client.Catalogs.Get(id, nil)
+	catalog, err := client.Catalogs.Get(id, &enbuild.CatalogListOptions{})
 	if err != nil {
 		return formatErrorResponse("Failed to get catalog details", err)
 	}
