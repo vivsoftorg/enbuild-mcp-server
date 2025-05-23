@@ -1,0 +1,36 @@
+# This is a basic GoReleaser config file for building and releasing your Go binary.
+# See https://goreleaser.com/customization/ for more options.
+
+project_name: mcp-server-enbuild
+builds:
+  - main: ./mcpenbuild.go
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags: -s -w
+    binary: mcp-server-enbuild
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+
+release:
+  github:
+    owner: vivsoft
+    name: mcp-server-enbuild
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: desc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
