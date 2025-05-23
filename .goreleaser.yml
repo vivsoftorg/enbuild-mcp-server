@@ -1,0 +1,40 @@
+version: 1
+project_name: mcp-server-enbuild
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+    - rm -rf bin
+
+release:
+  prerelease: auto
+
+env:
+  - yq_version=v4.44.1
+  - GO111MODULE=on
+  - vpkg="0.0.1"
+
+builds:
+  - main: mcpenbuild.go
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+    hooks:
+      pre:
+        - mkdir -p bin/
+      post:
+        - rm -rf bin
+    env:
+      - CGO_ENABLED=0
+
+universal_binaries:
+  - replace: false
+
+changelog:
+  skip: true
+  use: git

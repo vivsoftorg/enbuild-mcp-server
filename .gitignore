@@ -23,3 +23,11 @@ go.work.sum
 
 # env file
 .env
+target/
+Notes.md
+API-Docs.md
+bin/
+.envrc
+.vscode/mcp.json
+.vscode/mcphost-mcp.json
+dist/
